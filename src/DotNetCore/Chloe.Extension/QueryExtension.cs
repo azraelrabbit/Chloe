@@ -52,6 +52,7 @@ namespace Chloe
 
         /// <summary>
         /// dbContext.Query&lt;User&gt;().ToList&lt;UserModel&gt;()
+        /// <para>该方法调用者的 IQuery.ElementType 必须是实体类型</para> 
         /// </summary>
         /// <typeparam name="TModel"></typeparam>
         /// <param name="source"></param>
@@ -62,6 +63,7 @@ namespace Chloe
         }
         /// <summary>
         /// dbContext.Query&lt;User&gt;().MapTo&lt;UserModel&gt;()
+        /// <para>该方法调用者的 IQuery.ElementType 必须是实体类型</para> 
         /// </summary>
         /// <typeparam name="TModel"></typeparam>
         /// <param name="source"></param>
@@ -119,21 +121,21 @@ namespace Chloe
         }
 
         /// <summary>
-        /// dbContext.Query&lt;User&gt;().Ignore&lt;User&gt;(a => new object[] { a.Name, a.Age })
+        /// dbContext.Query&lt;User&gt;().Ignore&lt;User&gt;(a => new { a.Name, a.Age }) or dbContext.Query&lt;User&gt;().Ignore&lt;User&gt;(a => new object[] { a.Name, a.Age })
         /// </summary>
         /// <typeparam name="TEntity"></typeparam>
         /// <param name="source"></param>
         /// <param name="fields"></param>
         /// <returns></returns>
-        public static IQuery<TEntity> Ignore<TEntity>(this IQuery<TEntity> source, Expression<Func<TEntity, object[]>> fields)
+        public static IQuery<TEntity> Ignore<TEntity>(this IQuery<TEntity> source, Expression<Func<TEntity, object>> fields)
         {
             Utils.CheckNull(fields);
 
-            List<string> fieldList = IgnoreFieldsResolver.Resolve(fields);
+            List<string> fieldList = FieldsResolver.Resolve(fields);
             return source.Ignore(fieldList.ToArray());
         }
         /// <summary>
-        /// dbContext.Query&lt;User&gt;().Ignore&lt;User&gt;("Age", "Name")
+        /// dbContext.Query&lt;User&gt;().Ignore&lt;User&gt;("Name,Age", "NickName")
         /// </summary>
         /// <typeparam name="TEntity"></typeparam>
         /// <param name="source"></param>
@@ -143,7 +145,13 @@ namespace Chloe
         {
             Utils.CheckNull(source);
 
-            if (fields == null || fields.Length == 0)
+            if (fields == null)
+                return source;
+
+            /* 支持 source.Ignore<User>("Name,Age", "NickName"); */
+            fields = fields.SelectMany(a => a.Split(',')).Select(a => a.Trim()).ToArray();
+
+            if (fields.Length == 0)
                 return source;
 
             List<MemberBinding> bindings = new List<MemberBinding>();
